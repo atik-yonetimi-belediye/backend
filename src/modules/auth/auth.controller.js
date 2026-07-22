@@ -1,0 +1,113 @@
+const authService = require("./auth.service");
+const { successResponse, errorResponse } = require("../../utils/response");
+
+async function loginAdmin(req, res) {
+  try {
+    const { kullanici_adi, sifre } = req.body;
+
+    if (!kullanici_adi || !sifre) {
+      return errorResponse(res, "Kullanıcı adı ve şifre zorunludur.", 400);
+    }
+
+    const data = await authService.loginAdmin(kullanici_adi, sifre);
+
+    return successResponse(res, "Yönetici girişi başarılı.", data);
+  } catch (error) {
+    return errorResponse(res, error.message, error.statusCode || 500);
+  }
+}
+
+async function loginCavus(req, res) {
+  try {
+    const { telefon, sifre } = req.body;
+
+    if (!telefon || !sifre) {
+      return errorResponse(res, "Telefon ve şifre zorunludur.", 400);
+    }
+
+    const data = await authService.loginCavus(telefon, sifre);
+
+    return successResponse(res, "Çavuş girişi başarılı.", data);
+  } catch (error) {
+    return errorResponse(res, error.message, error.statusCode || 500);
+  }
+}
+
+async function loginSofor(req, res) {
+  try {
+    const { telefon, sifre } = req.body;
+
+    if (!telefon || !sifre) {
+      return errorResponse(res, "Telefon ve şifre zorunludur.", 400);
+    }
+
+    const data = await authService.loginSofor(telefon, sifre);
+
+    return successResponse(res, "Şoför girişi başarılı.", data);
+  } catch (error) {
+    return errorResponse(res, error.message, error.statusCode || 500);
+  }
+}
+
+async function loginSirket(req, res) {
+  try {
+    const { mail, sifre } = req.body;
+
+    if (!mail || !sifre) {
+      return errorResponse(res, "Mail ve şifre zorunludur.", 400);
+    }
+
+    const data = await authService.loginSirket(mail, sifre);
+
+    return successResponse(res, "Şirket girişi başarılı.", data);
+  } catch (error) {
+    return errorResponse(res, error.message, error.statusCode || 500);
+  }
+}
+
+async function registerSirket(req, res) {
+  try {
+    const { ad, adres, mail, telefon, sifre } = req.body;
+
+    if (!ad || !mail || !telefon || !sifre) {
+      return errorResponse(
+        res,
+        "Ad, mail, telefon ve şifre alanları zorunludur.",
+        400
+      );
+    }
+
+    const data = await authService.registerSirket({
+      ad,
+      adres,
+      mail,
+      telefon,
+      sifre,
+    });
+
+    return successResponse(
+      res,
+      "Şirket kaydı oluşturuldu. Yönetici onayı bekleniyor.",
+      data,
+      201
+    );
+  } catch (error) {
+    if (error.code === "23505") {
+      return errorResponse(
+        res,
+        "Bu mail veya telefon ile kayıtlı bir şirket zaten var.",
+        409
+      );
+    }
+
+    return errorResponse(res, error.message, error.statusCode || 500);
+  }
+}
+
+module.exports = {
+  loginAdmin,
+  loginCavus,
+  loginSofor,
+  loginSirket,
+  registerSirket,
+};

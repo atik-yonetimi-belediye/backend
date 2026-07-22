@@ -1,0 +1,104 @@
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const pool = require("./config/db");
+
+const authRoutes = require("./modules/auth/auth.routes");
+const mahalleRoutes = require("./modules/mahalle/mahalle.routes");
+const konteynerRoutes = require("./modules/konteyner/konteyner.routes");
+const cavusRoutes = require("./modules/cavus/cavus.routes");
+const soforRoutes = require("./modules/sofor/sofor.routes");
+const sikayetRoutes = require("./modules/sikayet/sikayet.routes");
+const sirketRoutes = require("./modules/sirket/sirket.routes");
+const recyclingRoutes = require("./modules/recycling/recycling.routes");
+const adminRoutes = require("./modules/admin/admin.routes");
+
+const AppError = require("./utils/AppError");
+const asyncHandler = require("./utils/asyncHandler");
+const errorMiddleware = require("./middlewares/errorMiddleware");
+
+const app = express();
+
+// 1. HTTP Security Headers (Helmet)
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+  })
+);
+
+// 2. Rate Limiting (General API: 15 mins max 300 requests)
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  message: {
+    success: false,
+    message: "Çok fazla istek gönderildi. Lütfen bir süre sonra tekrar deneyiniz."
+  }
+});
+
+// 3. Strict Auth Rate Limiter (Brute-Force prevention: 15 mins max 15 requests)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: {
+    success: false,
+    message: "Çok sayıda hatalı veya üst üste deneme yapıldı. Lütfen 15 dakika bekleyiniz."
+  }
+});
+
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
+
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "Atık Yönetimi Backend API çalışıyor.",
+  });
+});
+
+app.get(
+  "/db-test",
+  asyncHandler(async (req, res) => {
+    const result = await pool.query("SELECT NOW() AS current_time");
+
+    res.json({
+      success: true,
+      message: "PostgreSQL bağlantısı başarılı.",
+      data: result.rows[0],
+    });
+  })
+);
+
+// Apply rate limiters
+app.use("/api/", generalLimiter);
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/sirket/register", authLimiter);
+
+// Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/mahalleler", mahalleRoutes);
+app.use("/api/konteynerler", konteynerRoutes);
+app.use("/api/cavus", cavusRoutes);
+app.use("/api/sofor", soforRoutes);
+app.use("/api/sikayetler", sikayetRoutes);
+app.use("/api/sirket", sirketRoutes);
+app.use("/api/recycling-requests", recyclingRoutes);
+app.use("/api/admin", adminRoutes);
+
+app.use((req, res, next) => {
+  next(new AppError("Route bulunamadı.", 404));
+});
+
+app.use(errorMiddleware);
+
+module.exports = app;
